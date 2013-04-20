@@ -1,5 +1,5 @@
 
-configuration DebugAppC
+configuration DebugC
 {
   provides interface Debug;
 }

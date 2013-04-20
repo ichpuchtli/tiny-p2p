@@ -1,2 +1,2 @@
-COMPONENT=DebugAppC
+COMPONENT=DebugC
 include $(MAKERULES)
