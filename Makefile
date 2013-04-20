@@ -1,0 +1,2 @@
+COMPONENT=DebugAppC
+include $(MAKERULES)
