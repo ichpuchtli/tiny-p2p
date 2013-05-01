@@ -1,10 +1,10 @@
 #include "bitvector.h"
 
-static uint16_t getIndex(uint16_t bitnum) {
+static unsigned int getIndex(unsigned int bitnum) {
   return bitnum / ELEMENT_SIZE;
 }
 
-static uint16_t getMask(uint16_t bitnum) {
+static unsigned int getMask(unsigned int bitnum) {
   return 1 << (bitnum % ELEMENT_SIZE);
 }
 
@@ -16,25 +16,25 @@ void vBitVectorSetAll(bitvector_t* vector) {
   memset((void*) vector, 255, sizeof(bitvector_t));
 }
 
-bool cBitVectorGet(bitvector_t* vector, uint16_t bitnum) {
+bool cBitVectorGet(bitvector_t* vector, unsigned int bitnum) {
   return (vector->m_bits[getIndex(bitnum)] & getMask(bitnum)) ? 1 : 0;
 }
 
-void vBitVectorSet(bitvector_t* vector, uint16_t bitnum) {
+void vBitVectorSet(bitvector_t* vector, unsigned int bitnum) {
   vector->m_bits[getIndex(bitnum)] |= getMask(bitnum);
 }
 
-void vBitVectorClear(bitvector_t* vector, uint16_t bitnum) {
+void vBitVectorClear(bitvector_t* vector, unsigned int bitnum) {
   vector->m_bits[getIndex(bitnum)] &= ~getMask(bitnum);
 }
 
-void vBitVectorToggle(bitvector_t* vector, uint16_t bitnum) {
+void vBitVectorToggle(bitvector_t* vector, unsigned int bitnum) {
   vector->m_bits[getIndex(bitnum)] ^= getMask(bitnum);
 }
 
 void vBitVectorOREQ(bitvector_t* dest, bitvector_t* vector){
 
-  uint16_t index = ARRAY_SIZE;
+  unsigned int index = ARRAY_SIZE;
 
   while(index--)
       dest->m_bits[index] |= vector->m_bits[index];
@@ -43,7 +43,7 @@ void vBitVectorOREQ(bitvector_t* dest, bitvector_t* vector){
 
 void vBitVectorANDEQ(bitvector_t* dest, bitvector_t* vector){
 
-  uint16_t index = ARRAY_SIZE;
+  unsigned int index = ARRAY_SIZE;
 
   while(index--)
       dest->m_bits[index] &= vector->m_bits[index];
@@ -51,13 +51,13 @@ void vBitVectorANDEQ(bitvector_t* dest, bitvector_t* vector){
 
 void vBitVectorXOREQ(bitvector_t* dest, bitvector_t* vector){
 
-  uint16_t index = ARRAY_SIZE;
+  unsigned int index = ARRAY_SIZE;
 
   while(index--)
       dest->m_bits[index] ^= vector->m_bits[index];
 }
 
-uint16_t ulBitVectorSize(void) {
+unsigned int ulBitVectorSize(void) {
   return MAX_TORRENT_SIZE;
 }
 

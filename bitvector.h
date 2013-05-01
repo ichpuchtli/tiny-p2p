@@ -1,10 +1,14 @@
-#ifndef _BITVECTOR_H_
-#define _BITVECTOR_H_
+#ifndef __BITVECTOR_H__
+#define __BITVECTOR_H__
+
+#include <stdint.h>
+
+#define MAX_TORRENT_SIZE 8192
 
 typedef uint8_t int_type;
 
 #define ELEMENT_SIZE (8*sizeof(int_type))
-#define ARRAY_SIZE ((MAX_TORRENT_SIZE + ELEMENT_SIZE-1) / ELEMENT_SIZE)
+#define ARRAY_SIZE   ((MAX_TORRENT_SIZE + ELEMENT_SIZE-1) / ELEMENT_SIZE)
 
 typedef struct {
 
