@@ -1,5 +1,12 @@
-#include <lib6lowpan/6lowpan.h>
-#include "P2PMessage.h"
+#include <stdint.h>
+
+#include "torrent.h"
+#include "addr.h"
+#include "tracker.h"
+#include "peer.h"
+#include "misc.h"
+#include "bitvector.h"
+#include "piece.h"
 
 interface P2PMessage {
 

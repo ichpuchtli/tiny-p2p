@@ -1,5 +1,16 @@
+#include <stdint.h>
+
 #include <lib6lowpan/6lowpan.h>
-#include "P2PMessage.h"
+
+#include "hash.h"
+#include "bitvector.h"
+#include "torrent.h"
+#include "tracker.h"
+#include "peer.h"
+#include "piece.h"
+#include "addr.h"
+
+#define MAX_P2P_MESG_SIZE 512
 
 module P2PMessageP {
 
@@ -7,29 +18,21 @@ module P2PMessageP {
   provides interface Init;
 
   uses interface UDP as MesgSock;
-  //uses interface StdControl as MesgCtrl;
-  //uses interface ICMPPing;
+  uses interface Debug;
 
+  uses interface SplitControl as SocketControl;
+
+  //uses interface StdControl as MesgCtrl;
+
+  // TODO Litter Module with debug messages
+  //uses interface ICMPPing;
 
 } implementation {
 
-  peer_t pxPeerTable[MAX_PEER_CONNECTIONS];
-
-  peer_t* pxWalkPeerTable(hash_t peerId){
-
-      uint16_t index = MAX_PEER_CONNECTIONS;
-
-      while(index--)
-          if(pxPeerTable[index].peerId == peerId) break; 
-
-      if( index < 0 )
-          return (peer_t*) 0x00;
-
-      return pxPeerTable + index;
-  }
 
   command error_t Init.init(){
 
+    call SocketControl.start();
     call MesgSock.bind(23);
     
     return SUCCESS;
@@ -42,7 +45,7 @@ module P2PMessageP {
 
     hash_t peerId = hash((uint8_t*) from, sizeof(addr_t));
 
-    peer_t* peer = pxWalkPeerTable(peerId);
+    peer_t* peer = pxPeerTableWalk(peerId);
 
     // TODO Check(len == mesg->len)
 
@@ -160,6 +163,7 @@ module P2PMessageP {
 
   //////////////////////////////////////////////////////////////////////////////
   // Unused Events
-  //event void SocketCtrl.startDone(error_t e) { }
-  //event void SocketCtrl.stopDone(error_t e) { }
+  event void SocketControl.startDone(error_t e) { }
+  event void SocketControl.stopDone(error_t e) { }
+
 }

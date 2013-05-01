@@ -1,4 +1,3 @@
-
 #include <lib6lowpan/6lowpan.h>
 
 configuration ClientAppC { 
@@ -16,16 +15,13 @@ configuration ClientAppC {
   components LedsC;
   ClientP.Leds -> LedsC;
 
-  components IPStackC;
-  ClientP.RadioControl -> IPStackC.SplitControl;
-
-  components new UdpSocketC();
-  ClientP.Echo -> UdpSocketC.UDP;
-
   components DebugC;
   ClientP.Debug -> DebugC.Debug;
 
-  /* Don't know why but we have to include this module */
+  components P2PMessageC;
+  ClientP.Message -> P2PMessageC.P2PMessage;
+
+  /* TODO Don't know why but we have to include this module */
   components UDPShellC;
 
 #ifdef RPL_ROUTING

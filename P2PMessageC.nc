@@ -1,26 +1,27 @@
 #include <lib6lowpan/6lowpan.h>
-#include "P2PMessage.h"
 
 configuration P2PMessageC
 {
   provides interface P2PMessage;
-}
-
+} 
 implementation
 {
   
   components P2PMessageP;
-  
   P2PMessage = P2PMessageP.P2PMessage;
 
   components MainC;
   MainC.SoftwareInit -> P2PMessageP.Init;
 
+  // TODO StdControl for each socket not entire ipstack
+  components IPStackC;
+  P2PMessageP.SocketControl -> IPStackC.SplitControl;
+
   components new UdpSocketC();
   P2PMessageP.MesgSock -> UdpSocketC.UDP;
 
-  //components DebugC;
-  //P2PMessageP.Debug -> DebugC.Debug;
+  components DebugC;
+  P2PMessageP.Debug -> DebugC.Debug;
 
   //components ICMPPingC;
   //UDPShellP.ICMPPing -> ICMPPingC.ICMPPing[unique("PING")];

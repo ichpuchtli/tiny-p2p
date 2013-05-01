@@ -1,5 +1,4 @@
 COMPONENT=ClientAppC
-COMPONENT=P2PMessageC
 # uncomment this for network programming support
 # BOOTLOADER=tosboot
 
