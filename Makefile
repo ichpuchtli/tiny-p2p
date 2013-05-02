@@ -1,0 +1,2 @@
+COMPONENT=PokeC
+include $(MAKERULES)
