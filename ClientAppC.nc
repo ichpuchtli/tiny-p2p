@@ -1,5 +1,4 @@
 #include <lib6lowpan/6lowpan.h>
-#include <printf.h>
 
 configuration ClientAppC { 
 
@@ -10,7 +9,7 @@ configuration ClientAppC {
   components MainC;
   ClientP.Boot -> MainC;
 
-  // ADC0
+  // ADC0 Differential Mode
   components new MicrophoneC(ATM128_ADC_DIFF_ADC01_1x);
   ClientP.MicSensor -> MicrophoneC;
 

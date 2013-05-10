@@ -7,7 +7,6 @@
 #include "bitvector.h"
 
 
-
 typedef struct {
 
   // Pack header structure here for when these structures are sent

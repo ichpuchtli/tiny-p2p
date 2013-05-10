@@ -1,8 +1,12 @@
 #include <lib6lowpan/lib6lowpan.h>
 #include <lib6lowpan/ip.h>
-#include <printf.h>
 
-#define MIC_DATA_BUFSIZE 512
+#include "peer.h" // pxPeerTable[], pxPeerTableWalk(peer_t), peer_t
+
+#define DEFAULT_PKT_SIZE 256
+
+#define xstr(a) str(a)
+#define str(a) #a
 
 module ClientP {
 
@@ -22,35 +26,130 @@ module ClientP {
 
   // Sensor Data
   uses interface Read<uint16_t> as MicSensor;
-
   //uses interface FileSystem as Files;
   
 
 } implementation {
 
-  volatile char cMicDataReady = 0;
-
-  //////////////////////////////////////////////////////////////////////////////
-  struct tmpPacket {
+  struct GenPacket {
     p2p_header_t header;
-    char array[MIC_DATA_BUFSIZE*2];
-  } xMicDataPacket;
-  
-  int16_t* dataBucket = (int16_t*) xMicDataPacket.array;
-  struct sockaddr_in6 peer1;
+    char array[DEFAULT_PKT_SIZE];
+  } xGenPacket;
+
+  peer_t xThisPeer;
+  tracker_t xTracker;
 
   // Boot
   event void Boot.booted() {
 
-    call Timer.startPeriodic(8);
+    call Debug.sendString("Initializing Peer Structure...");
+
+    // Initialize Peer Structure
+    xThisPeer.addr.port = htons(P2PMESSAGE_PORT);
+
+    call Debug.sendByte('.');
+
+    inet_pton6("fec0::" xstr(TOS_NODE_ID), &xThisPeer.addr.addr);
+
+    call Debug.sendByte('.');
+
+    xThisPeer.peerId = hash(xThisPeer.addr,sizeof(addr_t))
+
+    call Debug.sendByte('.');
+
+    vBitVectorSetAll(&xThisPeer.interested);
+
+    call Debug.sendByte('.');
+
+    vBitVectorClearAll(&xThisPeer.completed);
+
+    call Debug.sendString("Done\r\n");
+
+    call Debug.sendString("Peer Addr: fec0::" xstr(TOS_NODE_ID) "\r\n");
+    call Debug.sendString("Peer Port: " xstr(P2PMESSAGE_PORT) "\r\nPeer ID: ");
+    call Debug.sendNum((int16_t) xThisPeer.peerId)
+    call Debug.sendCRLF();
+
+    call Debug.sendString("Connecting to Tracker...");
+
+    xTracker.addr.port = htons(TRACKER_PORT);
+
+    call Debug.sendByte('.');
+
+    inet_pton6(TRACKER_ADDR_STR, &xTracker.addr.addr);
+
+    call Debug.sendByte('.');
+
+    xTracker.id = hash(xTracker.addr,sizeof(addr_t))
+
+    call Debug.sendByte('.');
+
+    // Continually ping the tracker until we got a response. 
+    //while(call Poke.poke(&xTracker.addr.addr, 2048) == 2048)
+      //call Debug.sendByte('.');
+  
+    call Debug.sendString("Connected\r\n");
+
+    call Debug.sendString("Initializing Session Structure...");
+
+    //TODO Session Structure
 
     call Debug.sendString("Booted!\r\n");
-    
-    peer1.sin6_port = htons(1300);
-    inet_pton6("fec0::100", &peer1.sin6_addr);
 
-    call Debug.sendString("New Peer: fec0::100 on port 1300!\r\n");
+    call Timer.startPeriodic(1024);
+
+    post vStateMachinePass_Task();
   }
+
+  task void vStateMachinePass_Task(void){
+
+    static bool cIdle = TRUE;
+    static uint8_t ucStage = 0;
+
+/*
+
+    switch(ucStage){
+
+      case 0: // Sraping
+       if(Scrape())
+         ucStage++;
+       goto PRESERVE;
+
+      case 1: // Announcing
+        if(peer_count < MAX_PEER_CONNECTIONS){
+          announce();
+        }else{
+          ucStage++;
+        }
+       goto PRESERVE;
+
+      case 2: // Leeching
+
+        if(fileCompleted){
+          ucStage++;
+        }else{
+          vRequestRaresetPiece();
+          vSendRequestedPiece();
+        }
+
+        goto PRESERVE;
+
+      case 3: // Seeding
+
+        vSendRequestedPiece();
+
+        goto PRESERVE;
+
+      }
+
+PRESERVE:
+    // Push State Machine State then exit
+    //post vStateMachinePass_Task();
+
+*/
+
+  }
+
   
   event void Message.recvScrapeResponse(tracker_t* trackerStatus){}
 
@@ -60,34 +159,17 @@ module ClientP {
   
   event void Message.recvInterest(peer_t* peer, bitvector_t* pieces){ }
 
-  event void Message.recvPiece(peer_t* peer, piece_t* piece){ 
-
-   /* struct tmpPacket* tmp = (struct tmpPacket*) piece;
-  
-    call Debug.sendStream(tmp->array, 10); */
-  
-  }
+  event void Message.recvPiece(peer_t* peer, piece_t* piece){ }
 
   event void Timer.fired() {
 
-    if(cMicDataReady){
-
-      call Debug.sendString("Microphone Data Dump Ready\r\n");
-
-      call Debug.sendString("Throwing a piece at fec0::100 on port 1300\r\n");
-  
-      call Message.sendMessage((addr_t*) &peer1, MESSAGE_PIECE, (uint8_t*) &xMicDataPacket , sizeof(struct tmpPacket));
-
-      cMicDataReady = 0;
-
-    }else{
-      call MicSensor.read();
-    }
+      //call Message.sendMessage((addr_t*) &peer1, MESSAGE_PIECE, (uint8_t*) &xMicDataPacket , sizeof(struct tmpPacket));
   }
 
   event void MicSensor.readDone(error_t result, uint16_t data) 
   {
 
+    /*
     int16_t signedData;
     static uint16_t index = 0;
       
@@ -99,6 +181,7 @@ module ClientP {
       index = 0;
       cMicDataReady = 1;
     }
+    */
   }
 
   //////////////////////////////////////////////////////////////////////////////

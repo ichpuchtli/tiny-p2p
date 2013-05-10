@@ -13,7 +13,7 @@ typedef struct {
   p2p_header_t header;
 
   hash_t peerId;
-  addr_t address;
+  addr_t addr;
 
   bitvector_t interests;
   bitvector_t completed;

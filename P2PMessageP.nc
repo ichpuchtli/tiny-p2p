@@ -10,7 +10,6 @@
 #include "piece.h"
 #include "addr.h"
 
-#define MAX_P2P_MESG_SIZE 512
 
 module P2PMessageP {
 
@@ -33,7 +32,7 @@ module P2PMessageP {
   command error_t Init.init(){
 
     call SocketControl.start();
-    call MesgSock.bind(23);
+    call MesgSock.bind(P2PMESSAGE_PORT);
     
     return SUCCESS;
 

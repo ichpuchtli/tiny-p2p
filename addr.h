@@ -6,7 +6,7 @@
 typedef struct {
 
     uint16_t port;
-    uint8_t address[16];
+    uint8_t addr[16];
 
 } addr_t;
 
