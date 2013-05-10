@@ -11,8 +11,8 @@ configuration ClientAppC {
   ClientP.Boot -> MainC;
 
   // ADC0
-  components new DemoSensorC();
-  ClientP.MicSensor -> DemoSensorC;
+  components new MicrophoneC(ATM128_ADC_DIFF_ADC01_1x);
+  ClientP.MicSensor -> MicrophoneC;
 
   components new TimerMilliC();
   ClientP.Timer -> TimerMilliC;

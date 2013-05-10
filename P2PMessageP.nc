@@ -45,7 +45,8 @@ module P2PMessageP {
 
     hash_t peerId = hash((uint8_t*) from, sizeof(addr_t));
 
-    peer_t* peer = pxPeerTableWalk(peerId);
+    //peer_t* peer = pxPeerTableWalk(peerId);
+    peer_t* peer;
 
     // TODO Check(len == mesg->len)
 

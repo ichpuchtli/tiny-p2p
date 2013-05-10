@@ -2,7 +2,7 @@
 #include <lib6lowpan/ip.h>
 #include <printf.h>
 
-#define MIC_DATA_BUFSIZE 16
+#define MIC_DATA_BUFSIZE 512
 
 module ClientP {
 
@@ -28,16 +28,28 @@ module ClientP {
 
 } implementation {
 
-  int16_t psMicData[MIC_DATA_BUFSIZE];
   volatile char cMicDataReady = 0;
 
   //////////////////////////////////////////////////////////////////////////////
+  struct tmpPacket {
+    p2p_header_t header;
+    char array[MIC_DATA_BUFSIZE*2];
+  } xMicDataPacket;
+  
+  int16_t* dataBucket = (int16_t*) xMicDataPacket.array;
+  struct sockaddr_in6 peer1;
+
   // Boot
   event void Boot.booted() {
 
-    call Timer.startPeriodic(4);
+    call Timer.startPeriodic(8);
 
     call Debug.sendString("Booted!\r\n");
+    
+    peer1.sin6_port = htons(1300);
+    inet_pton6("fec0::100", &peer1.sin6_addr);
+
+    call Debug.sendString("New Peer: fec0::100 on port 1300!\r\n");
   }
   
   event void Message.recvScrapeResponse(tracker_t* trackerStatus){}
@@ -46,23 +58,31 @@ module ClientP {
 
   event void Message.recvHandShake(addr_t* addr, peer_t* peerInfo){}
   
-  event void Message.recvInterest(peer_t* peer, bitvector_t* pieces){}
+  event void Message.recvInterest(peer_t* peer, bitvector_t* pieces){ }
 
-  event void Message.recvPiece(peer_t* peer, piece_t* piece){}
+  event void Message.recvPiece(peer_t* peer, piece_t* piece){ 
+
+   /* struct tmpPacket* tmp = (struct tmpPacket*) piece;
+  
+    call Debug.sendStream(tmp->array, 10); */
+  
+  }
 
   event void Timer.fired() {
 
     if(cMicDataReady){
-      //TODO Update Piece BitVector
-      //call Messagne.sendMessage();
-      call Debug.sendString("Data Ready\r\n");
+
+      call Debug.sendString("Microphone Data Dump Ready\r\n");
+
+      call Debug.sendString("Throwing a piece at fec0::100 on port 1300\r\n");
+  
+      call Message.sendMessage((addr_t*) &peer1, MESSAGE_PIECE, (uint8_t*) &xMicDataPacket , sizeof(struct tmpPacket));
+
       cMicDataReady = 0;
+
     }else{
       call MicSensor.read();
     }
-
-    //printf("Timer: %d\r\n", cMicDataReady);
-    //printfflush();
   }
 
   event void MicSensor.readDone(error_t result, uint16_t data) 
@@ -73,26 +93,12 @@ module ClientP {
       
     signedData = (int16_t) (data << 6);
     
-    call Debug.sendString("Read\r\n");
-
-    /*
-    call Debug.sendString("Read");
-    call Debug.sendByte((char) (index&0xFF));
-    call Debug.sendString("\r\n");
-    call Debug.sendByte((char) (data & 0xFF));
-    call Debug.sendByte((char) (data >> 8));
-    */
-
-    //printf("Read[%d]: %d\r\n", index, signedData);
-    //printfflush();
-    
     if(index < MIC_DATA_BUFSIZE){
-      psMicData[index++] = signedData;
+      dataBucket[index++] = signedData;
     }else{
       index = 0;
       cMicDataReady = 1;
     }
-
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -104,3 +110,4 @@ module ClientP {
   //event void RadioControl.stopDone(error_t e) { }
 
 }
+
