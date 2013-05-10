@@ -1,4 +1,5 @@
 #include <lib6lowpan/6lowpan.h>
+#include <printf.h>
 
 configuration ClientAppC { 
 
@@ -8,6 +9,10 @@ configuration ClientAppC {
 
   components MainC;
   ClientP.Boot -> MainC;
+
+  // ADC0
+  components new DemoSensorC();
+  ClientP.MicSensor -> DemoSensorC;
 
   components new TimerMilliC();
   ClientP.Timer -> TimerMilliC;
