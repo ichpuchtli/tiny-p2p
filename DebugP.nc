@@ -9,6 +9,50 @@ module DebugP {
 
 } implementation {
 
+
+  void reverse(char* str, int length){
+
+    int i = 0, j = length-1;
+    char tmp;
+
+    while(i < j){
+
+      tmp = str;
+
+      str[i] = str[j];
+      str[j] = tmp;
+
+      i++;
+      j--;
+
+    }
+
+  }
+
+  // itoa implementation from K&R
+  int itoa(int n, char* out){
+
+    // if negative, need 1 char for sign
+    int sign = n < 0 ? 1 : 0;
+    int i = 0;
+    if( n == 0 ){
+      out[i++] = '0';
+    }else if (n < 0){
+      out[i++] = '-';
+      n = -n;
+    }
+    
+    while (n > 0) {
+      out[i++] = '0' + n % 10;
+      n /= 10;
+    }
+
+    out[i] = '\0';
+    reverse(out + sign, i - sign);
+
+    return i - sign;
+  }
+
   command error_t Init.init(){
 
     call UartControl.start();
@@ -29,11 +73,15 @@ module DebugP {
     call Debug.sendStream(byteString, call Debug.stringLen(byteString));
   }
 
-  async command void Debug.sendNum(uint16_t num){
+  async command void Debug.sendNum(int16_t num){
 
     char buffer[8];
+    uint8_t len = 0;
 
-    call Debug.sendStream(buffer, call Debug.num2Str(num,buffer));
+    len = itoa(num, buffer);
+
+    // ignore the trailing '\0'
+    call Debug.sendStream(buffer, len - 1); 
   }
 
   async command void Debug.sendCRLF(){
@@ -64,19 +112,7 @@ module DebugP {
 
   }
 
-  async command uint8_t Debug.num2Str(uint16_t num, char* buf){
-
-    uint16_t i = 8;
-    uint8_t j = 0;
-
-    for(; num && i; --i, num /= 10) buf[i] = "0123456789"[num % 10];
-
-    for(; j < (8 - (i+1)); j++){
-      buf[j] = buf[i+1+j];
-    }
-
-    return j;
-  }
+  async command uint8_t Debug.num2Str(uint16_t num, char* buf){ }
 
   async command void Debug.flush(void){ }
 
