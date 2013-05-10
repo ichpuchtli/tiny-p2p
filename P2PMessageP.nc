@@ -2,6 +2,8 @@
 
 #include <lib6lowpan/6lowpan.h>
 
+#include "P2PMessage.h"
+
 #include "hash.h"
 #include "bitvector.h"
 #include "torrent.h"

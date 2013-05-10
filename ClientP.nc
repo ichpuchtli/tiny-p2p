@@ -1,7 +1,11 @@
 #include <lib6lowpan/lib6lowpan.h>
 #include <lib6lowpan/ip.h>
 
+#include "tracker.h" //TRACKER_PORT, TRACKER_ADDR_STR, tracker_t
 #include "peer.h" // pxPeerTable[], pxPeerTableWalk(peer_t), peer_t
+#include "session.h"
+#include "P2PMessage.h" // P2PMESSAGE_PORT
+#include "bitvector.h"
 
 #define DEFAULT_PKT_SIZE 256
 
@@ -28,13 +32,17 @@ module ClientP {
   uses interface Read<uint16_t> as MicSensor;
   //uses interface FileSystem as Files;
   
+  // Poke aka Ping, sync ping service 
+  //uses interface Poke;
 
 } implementation {
 
+/*
   struct GenPacket {
     p2p_header_t header;
     char array[DEFAULT_PKT_SIZE];
   } xGenPacket;
+*/
 
   peer_t xThisPeer;
   tracker_t xTracker;
@@ -49,15 +57,15 @@ module ClientP {
 
     call Debug.sendByte('.');
 
-    inet_pton6("fec0::" xstr(TOS_NODE_ID), &xThisPeer.addr.addr);
+    inet_pton6("fec0::" xstr(TOS_NODE_ID), (struct in6_addr*) &xThisPeer.addr.addr);
 
     call Debug.sendByte('.');
 
-    xThisPeer.peerId = hash(xThisPeer.addr,sizeof(addr_t))
+    xThisPeer.peerId = hash((uint8_t*) &xThisPeer.addr, sizeof(addr_t));
 
     call Debug.sendByte('.');
 
-    vBitVectorSetAll(&xThisPeer.interested);
+    vBitVectorSetAll(&xThisPeer.interests);
 
     call Debug.sendByte('.');
 
@@ -66,8 +74,9 @@ module ClientP {
     call Debug.sendString("Done\r\n");
 
     call Debug.sendString("Peer Addr: fec0::" xstr(TOS_NODE_ID) "\r\n");
-    call Debug.sendString("Peer Port: " xstr(P2PMESSAGE_PORT) "\r\nPeer ID: ");
-    call Debug.sendNum((int16_t) xThisPeer.peerId)
+    call Debug.sendString("Peer Port: " xstr(P2PMESSAGE_PORT));
+    call Debug.sendString("\r\nPeer ID: ");
+    call Debug.sendNum((int16_t) xThisPeer.peerId);
     call Debug.sendCRLF();
 
     call Debug.sendString("Connecting to Tracker...");
@@ -76,11 +85,11 @@ module ClientP {
 
     call Debug.sendByte('.');
 
-    inet_pton6(TRACKER_ADDR_STR, &xTracker.addr.addr);
+    inet_pton6(TRACKER_ADDR_STR, (struct in6_addr*) &xTracker.addr.addr);
 
     call Debug.sendByte('.');
 
-    xTracker.id = hash(xTracker.addr,sizeof(addr_t))
+    xTracker.id = hash((uint8_t*) &xTracker.addr ,sizeof(addr_t));
 
     call Debug.sendByte('.');
 
@@ -98,12 +107,12 @@ module ClientP {
 
     call Timer.startPeriodic(1024);
 
-    post vStateMachinePass_Task();
+    //post vStateMachinePass_Task();
   }
 
   task void vStateMachinePass_Task(void){
 
-    static bool cIdle = TRUE;
+    static char cIdle = 1;
     static uint8_t ucStage = 0;
 
 /*

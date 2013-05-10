@@ -1,5 +1,7 @@
 #include "bitvector.h"
 
+#include <string.h>
+
 static unsigned int getIndex(unsigned int bitnum) {
   return bitnum / ELEMENT_SIZE;
 }
@@ -16,7 +18,7 @@ void vBitVectorSetAll(bitvector_t* vector) {
   memset((void*) vector, 255, sizeof(bitvector_t));
 }
 
-bool cBitVectorGet(bitvector_t* vector, unsigned int bitnum) {
+char cBitVectorGet(bitvector_t* vector, unsigned int bitnum) {
   return (vector->m_bits[getIndex(bitnum)] & getMask(bitnum)) ? 1 : 0;
 }
 

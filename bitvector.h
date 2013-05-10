@@ -19,7 +19,7 @@ typedef struct {
 void vBitVectorSetAll(bitvector_t* vector);
 void vBitVectorClearAll(bitvector_t* vector);
 
-uint8_t cBitVectorGet(bitvector_t* vector, uint16_t bitnum);
+char cBitVectorGet(bitvector_t* vector, uint16_t bitnum);
 
 void vBitVectorSet(bitvector_t* vector, uint16_t bitnum);
 void vBitVectorClear(bitvector_t* vector, uint16_t bitnum);
