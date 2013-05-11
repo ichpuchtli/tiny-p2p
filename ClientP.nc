@@ -12,6 +12,15 @@
 #define xstr(a) str(a)
 #define str(a) #a
 
+enum {
+
+  FSM_IDLE = 0,
+  FSM_ANNOUCE,
+  FSM_LEECH,
+  FSM_SEED
+}
+
+
 module ClientP {
 
   uses interface Boot;
@@ -32,20 +41,19 @@ module ClientP {
   uses interface Read<uint16_t> as MicSensor;
   //uses interface FileSystem as Files;
   
-  // Poke aka Ping, sync ping service 
+  // Poke, sync ping service 
   //uses interface Poke;
 
 } implementation {
 
-/*
-  struct GenPacket {
-    p2p_header_t header;
-    char array[DEFAULT_PKT_SIZE];
-  } xGenPacket;
-*/
+  task void vStateMachinePass_Task(void);
 
   peer_t xThisPeer;
   tracker_t xTracker;
+  session_t xSession;
+  torrent_t xTorrent;
+
+  static volatile uint8_t ucFSMState = 0;
 
   // Boot
   event void Boot.booted() {
@@ -55,95 +63,75 @@ module ClientP {
     // Initialize Peer Structure
     xThisPeer.addr.port = htons(P2PMESSAGE_PORT);
 
-    call Debug.sendByte('.');
-
-    inet_pton6("fec0::" xstr(TOS_NODE_ID), (struct in6_addr*) &xThisPeer.addr.addr);
-
-    call Debug.sendByte('.');
+    inet_pton6("fec0::", (struct in6_addr*) &xThisPeer.addr.addr);
+    ((struct in6_addr) xThisPeer.addr.addr).in6_u.u6_addr16[7] =
+    (((uint16_t )TOS_NODE_ID << 8) | ((uint16_t )TOS_NODE_ID >> 8)) & 0xffff;
 
     xThisPeer.peerId = hash((uint8_t*) &xThisPeer.addr, sizeof(addr_t));
 
-    call Debug.sendByte('.');
-
     vBitVectorSetAll(&xThisPeer.interests);
-
-    call Debug.sendByte('.');
 
     vBitVectorClearAll(&xThisPeer.completed);
 
-    call Debug.sendString("Done\r\n");
-
-    call Debug.sendString("Peer Addr: fec0::" xstr(TOS_NODE_ID) "\r\n");
+    call Debug.sendString("Peer Addr: fec0::");
+    call Debug.sendNum(TOS_NODE_ID);
+    call Debug.sendCRLF();
     call Debug.sendString("Peer Port: " xstr(P2PMESSAGE_PORT));
-    call Debug.sendString("\r\nPeer ID: ");
+    call Debug.sendCRLF();
+    call Debug.sendString("Peer ID: ");
     call Debug.sendNum((int16_t) xThisPeer.peerId);
     call Debug.sendCRLF();
 
-    call Debug.sendString("Connecting to Tracker...");
+    call Debug.sendString("Poking Tracker...\r\n");
 
     xTracker.addr.port = htons(TRACKER_PORT);
 
-    call Debug.sendByte('.');
-
     inet_pton6(TRACKER_ADDR_STR, (struct in6_addr*) &xTracker.addr.addr);
-
-    call Debug.sendByte('.');
 
     xTracker.id = hash((uint8_t*) &xTracker.addr ,sizeof(addr_t));
 
-    call Debug.sendByte('.');
-
     // Continually ping the tracker until we got a response. 
-    //while(call Poke.poke(&xTracker.addr.addr, 2048) == 2048)
-      //call Debug.sendByte('.');
-  
-    call Debug.sendString("Connected\r\n");
+    //while(call Poke.poke(&xTracker.addr.addr, 2048) == 2048);
 
-    call Debug.sendString("Initializing Session Structure...");
-
-    //TODO Session Structure
+    /* Session Structure */
+    call Debug.sendString("Initializing Session Structure...\r\n");
+    memset((void*) xSession, '\0', sizeof(session_t)); 
 
     call Debug.sendString("Booted!\r\n");
 
     call Timer.startPeriodic(1024);
 
-    //post vStateMachinePass_Task();
+    post vStateMachinePass_Task();
+
   }
+
 
   task void vStateMachinePass_Task(void){
 
-    static char cIdle = 1;
-    static uint8_t ucStage = 0;
 
-/*
+    switch(ucState){
 
-    switch(ucStage){
+      case FSM_IDLE: // Sraping
+        call P2PMessage.scrape(NULL);
+        return;
 
-      case 0: // Sraping
-       if(Scrape())
-         ucStage++;
-       goto PRESERVE;
+      case FSM_ANNOUCE: // Announcing
+        call P2PMessage.announce();
+        return;
 
-      case 1: // Announcing
-        if(peer_count < MAX_PEER_CONNECTIONS){
-          announce();
-        }else{
-          ucStage++;
-        }
-       goto PRESERVE;
-
-      case 2: // Leeching
+      case FSM_LEECH: // Leeching
 
         if(fileCompleted){
           ucStage++;
         }else{
+
           vRequestRaresetPiece();
           vSendRequestedPiece();
         }
 
         goto PRESERVE;
 
-      case 3: // Seeding
+      case FSM_SEED: // Seeding
 
         vSendRequestedPiece();
 
@@ -153,16 +141,38 @@ module ClientP {
 
 PRESERVE:
     // Push State Machine State then exit
-    //post vStateMachinePass_Task();
+    post vStateMachinePass_Task();
 
-*/
 
   }
 
   
-  event void Message.recvScrapeResponse(tracker_t* trackerStatus){}
+  event void Message.recvScrapeResponse(tracker_t* trackerStatus){
+  
+    //TODO Check tracker response and step the fsm if applicable
+    //TODO maybe change function arg to torrent_t*
 
-  event void Message.recvAnnounceResponse(peer_t* peer){}
+    if(trackerStatus->torrent){ // TODO This is not good indicator for ready torrent
+      memcpy((void*) &xTorrent, (void*) trackerStatus->torrent, sizeof(torrent_t)); 
+    }
+
+    post vStateMachinePass_Task();
+  }
+
+  event void Message.recvAnnounceResponse(peer_t* peer){
+  
+    //TODO add to peer list then handshake peer
+
+    if(!pxPeerTableWalk(peer->id)){
+
+      vPeerTableAdd(peer);
+
+      call P2PMessage.handshake(peer->addr);
+    }
+
+    post vStateMachinePass_Task();
+  
+  }
 
   event void Message.recvHandShake(addr_t* addr, peer_t* peerInfo){}
   

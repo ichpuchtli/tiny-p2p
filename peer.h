@@ -5,7 +5,7 @@
 #include "bitvector.h"
 #include "addr.h"
 
-#define MAX_PEER_CONNECTIONS 4
+#define PEER_TABLE_SIZE 4
 
 typedef struct {
 
@@ -20,11 +20,12 @@ typedef struct {
 
 } peer_t;
 
-static peer_t pxPeerTable[MAX_PEER_CONNECTIONS];
+static peer_t pxPeerTable[PEER_TABLE_SIZE] = {0};
+static uint8_t ucPeerCount = 0;
 
 peer_t* pxPeerTableWalk(hash_t peerId){
 
-  uint16_t index = MAX_PEER_CONNECTIONS;
+  uint16_t index = PEER_TABLE_SIZE;
 
   while(index--)
     if(pxPeerTable[index].peerId == peerId) break; 
@@ -35,6 +36,13 @@ peer_t* pxPeerTableWalk(hash_t peerId){
   return pxPeerTable + index;
 }
 
-void vPeerTableAdd(peer_t* peer){}
+void vPeerTableAdd(peer_t* peer){
+
+  if(ucPeerCount < PEER_TABLE_SIZE){
+    memcpy((void*) (pcPeerTable + ucPeerCount), (void*) peer, sizeof(peer_t));
+    ucPeerCount++;
+  }
+
+}
 
 #endif

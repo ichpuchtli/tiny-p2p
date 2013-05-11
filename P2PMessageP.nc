@@ -99,25 +99,6 @@ module P2PMessageP {
 
   }
 
-/*
-  event void ICMPPing.pingReply(struct in6_addr *source, struct icmp_stats *stats) {
-    int len;
-    len = inet_ntop6(source, reply_buf, MAX_REPLY_LEN);
-    if (len > 0) {
-      len += snprintf(reply_buf + len - 1, MAX_REPLY_LEN - len + 1, ping_fmt,
-                      stats->seq, stats->ttl, stats->rtt);
-      reply_buf[len] = '\0';
-      call UDP.sendto(&session_endpoint, reply_buf, len);
-    }
-  }
-
-  event void ICMPPing.pingDone(uint16_t ping_rcv, uint16_t ping_n) {
-    int len;
-    len = snprintf(reply_buf, MAX_REPLY_LEN, ping_summary, ping_n, ping_rcv);
-    call UDP.sendto(&session_endpoint, reply_buf, len);
-  }
-*/
-
   async command void P2PMessage.sendMessage(addr_t* peer, p2p_mesg_t type, uint8_t* payload, uint16_t count){
 
     // TODO queue's for each packet type 

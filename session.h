@@ -26,10 +26,6 @@ typedef struct {
   uint16_t announces; // #announces made
   uint16_t scrapes; // #scrapes made
 
-  bitvector_t progress; // bitvector of pieces collected
-
-  torrent_t torrent; // the torrent we are currently downloadnig
-
   status_t status; // the status of this peer
 
 } session_t;
