@@ -12,9 +12,9 @@ interface P2PMessage {
 
 
   // Tracker Events
-  event void recvScrapeRequest(hash_t peerId, torrent_t* torrent);
+  event void recvScrapeRequest(addr_t* from, torrent_t* torrent);
 
-  event void recvAnnounceRequest(hash_t peerId);
+  event void recvAnnounceRequest(addr_t* from);
 
   // Tracker Commands   
   command void sendScrapeResponse(addr_t* to, torrent_t* torrent); 
