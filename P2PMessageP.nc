@@ -54,12 +54,12 @@ module P2PMessageP {
       // Tracker Events
       case MESSAGE_SCRAPE:
         // Scrape Request from a client to a tracker
-        signal P2PMessage.recvScrapeRequest(peerId, (torrent_t*) data);
+        signal P2PMessage.recvScrapeRequest((addr_t*) from, (torrent_t*) data);
         break;
 
       case MESSAGE_ANNOUNCE:
         // Scrape Request from a client to a tracker
-        signal P2PMessage.recvAnnounceRequest(peerId);
+        signal P2PMessage.recvAnnounceRequest((addr_t*) from);
         break;
 
       // Client Events
