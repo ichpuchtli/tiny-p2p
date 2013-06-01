@@ -1,7 +1,6 @@
 #include <stdint.h>
 
 #include <lib6lowpan/6lowpan.h>
-
 #include "P2PMessage.h"
 
 #include "hash.h"
@@ -23,11 +22,6 @@ module P2PMessageP {
 
   uses interface SplitControl as SocketControl;
 
-  //uses interface StdControl as MesgCtrl;
-
-  // TODO Litter Module with debug messages
-  //uses interface ICMPPing;
-
 } implementation {
 
 
@@ -35,6 +29,7 @@ module P2PMessageP {
 
     call SocketControl.start();
     call MesgSock.bind(P2PMESSAGE_PORT);
+    call Debug.sendString("P2PMessage Socket Bound To: " xstr(P2PMESSAGE_PORT) );
     
     return SUCCESS;
 
@@ -44,101 +39,123 @@ module P2PMessageP {
 
     p2p_header_t* mesg = (p2p_header_t*) data;
 
-    hash_t peerId = hash((uint8_t*) from, sizeof(addr_t));
+    hash_t peerId = hash((uint8_t*) from, sizeof(struct sockaddr_in6));
 
-    //peer_t* peer = pxPeerTableWalk(peerId);
-    peer_t* peer;
-
-    // TODO Check(len == mesg->len)
+    call Debug.sendString("P2PMessage: Message Received peerId: ");
+    call Debug.sendNum(peerId);
+    call Debug.sendString(", mesg->len: ");
+    call Debug.sendNum(mesg->len);
+    call Debug.sendString(", mesg->type: ");
+    call Debug.sendNum(mesg->type);
+    call Debug.sendCRLF();
 
     switch(mesg->type){
 
+      // Tracker Events
+      case MESSAGE_SCRAPE:
+        // Scrape Request from a client to a tracker
+        signal P2PMessage.recvScrapeRequest(peerId, (torrent_t*) data);
+        break;
+
+      case MESSAGE_ANNOUNCE:
+        // Scrape Request from a client to a tracker
+        signal P2PMessage.recvAnnounceRequest(peerId);
+        break;
+
+      // Client Events
       case MESSAGE_SCRAPE_RESPONSE:
-        signal P2PMessage.recvScrapeResponse((tracker_t*) data);
+        // Scrape Response from tracker
+        signal P2PMessage.recvScrapeResponse((torrent_t*) data);
         break;
 
       case MESSAGE_ANNOUNCE_RESPONSE:
+        // Announce response from tracker
         signal P2PMessage.recvAnnounceResponse((peer_t*) data);
         break;
 
       case MESSAGE_HANDSHAKE:
         // TODO perhaps update peer table here
-        signal P2PMessage.recvHandShake((addr_t*) from, (peer_t*) data);
+        signal P2PMessage.recvHandShake(peerId, (peer_t*) data);
         break;
 
       case MESSAGE_INTEREST:
-        signal P2PMessage.recvInterest(peer, (bitvector_t*) data);
+        signal P2PMessage.recvInterest(peerId, (bitvector_t*) data);
         break;
 
       case MESSAGE_PIECE:
-        signal P2PMessage.recvPiece(peer, (piece_t*) data);
+        signal P2PMessage.recvPiece(peerId, (piece_t*) data);
         break;
 
-      case MESSAGE_PIECE_ACK:
-        // TODO maybe some internal handling here
-        //signal P2PMessage.recvPieceAck(peer);
-        break;
-
-      case MESSAGE_INTEREST_ACK:
-        // TODO maybe some internal handling here
-        //signal P2PMessage.recvInterestAck(peer);
-        break;
-
-      case MESSAGE_HANDSHAKE_RESPONSE:
-        // TODO perhaps update peer table here
-        // TODO maybe some internal handling here
-        //signal P2PMessage.recvHandshakeResponse(peer, (peer_t*) payload);
-        break;
-
-      default: break;
-               // TODO unknown message event
+      default:
+        call Debug.sendString("P2PMessage: Error unknown message type\r\n");
         break;
 
     }
 
-
   }
 
-  async command void P2PMessage.sendMessage(addr_t* peer, p2p_mesg_t type, uint8_t* payload, uint16_t count){
+  command void P2PMessage.sendMessage(addr_t* to, p2p_mesg_t type, uint8_t* payload, uint16_t count){
 
-    // TODO queue's for each packet type 
-    p2p_header_t* mesg = (p2p_header_t*) payload;
+    p2p_header_t null_header;
+
+    hash_t peerId = hash((uint8_t*) to, sizeof(struct sockaddr_in6));
+
+    //TODO not sure if this is safe, depends if sendto is sync or at least copies the mesg
+    p2p_header_t* mesg = &null_header;
+
+    if(payload){
+      mesg = (p2p_header_t*) payload;
+    }
 
     mesg->type = type;
     mesg->len = count;
 
-    call MesgSock.sendto((struct sockaddr_in6*) peer, (void*) mesg, mesg->len);
+    call Debug.sendString("P2PMessage: Message Sent peerId: ");
+    call Debug.sendNum(peerId);
+    call Debug.sendString(", mesg->len: ");
+    call Debug.sendNum(mesg->len);
+    call Debug.sendString(", mesg->type: ");
+    call Debug.sendNum(mesg->type);
+    call Debug.sendCRLF();
+
+    call MesgSock.sendto((struct sockaddr_in6*) to, (void*) mesg, mesg->len);
 
   }
 
-  // Similar to Ping just checks for a response; payload ignored 
-  async command void P2PMessage.ping(addr_t* peer){
 
-    //call ICMPPing.ping((addr_t*) peer, 1024, 10);
+  // Tracker Commands
+  command void P2PMessage.sendScrapeResponse(addr_t* to, torrent_t* torrent){
+    call P2PMessage.sendMessage(to, MESSAGE_SCRAPE_RESPONSE, (uint8_t*) torrent, sizeof(torrent_t));
   }
+
+  command void P2PMessage.sendAnnounceResponse(addr_t* to, addr_t* peer){
+    call P2PMessage.sendMessage(to, MESSAGE_ANNOUNCE_RESPONSE, (uint8_t*) peer, sizeof(addr_t));
+  } 
 
   // A handshake is used to greet a new peer in the swam exchanging peer_t information
   // Who you are (PeerID) , what your after(torrent_t{bitvector,sha1}), what port you listen on(port_t), etc..
-  async command void P2PMessage.handshake(addr_t* peer){ }
+  command void P2PMessage.handshake(addr_t* to, peer_t* peerInfo){}
 
   // Ask the tracker for information about a torrent, tracker load, swarm status etc..
   // Empty torrent meta signals new torrent
-  async command void P2PMessage.scrape(torrent_t* meta){
-    //call P2PMessage.sendMessage(TRACKER_ID, MESSAGE_SCRAPE, (uint8_t*) meta, META_SIZE);
+  command void P2PMessage.scrape(addr_t* to, torrent_t* meta){
+    call P2PMessage.sendMessage(to, MESSAGE_SCRAPE, (uint8_t*) meta, sizeof(torrent_t));
   }
 
   // Acknowledge your presents in the p2p network and ask for peers
-  async command void P2PMessage.announce(void){}
+  command void P2PMessage.announce(addr_t* to){
+    call P2PMessage.sendMessage(to, MESSAGE_ANNOUNCE, (uint8_t*) 0, 0);
+  }
 
   // Send a piece to an address
-  async command void P2PMessage.sendPiece(addr_t* peer, piece_t* piece){
-    call P2PMessage.sendMessage(peer, MESSAGE_PIECE, (uint8_t*) piece, PIECE_SIZE);
+  command void P2PMessage.sendPiece(addr_t* to, piece_t* piece){
+    call P2PMessage.sendMessage(to, MESSAGE_PIECE, (uint8_t*) piece, PIECE_SIZE);
   }
 
   // Request a peice from an address; not sure when or if this mechanism will be used
   // Use a zero len piece to signal peice request
-  async command void P2PMessage.sendInterest(addr_t* peer, bitvector_t* pieces){
-    //call P2PMessage.sendMessage(peerId, MESSAGE_INTEREST, (uint8_t*) pieceId, ulHashSize(pieceId));
+  command void P2PMessage.sendInterest(addr_t* to, bitvector_t* pieces){
+    call P2PMessage.sendMessage(to, MESSAGE_INTEREST, (uint8_t*) pieces, sizeof(bitvector_t));
   }
 
   //////////////////////////////////////////////////////////////////////////////

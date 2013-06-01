@@ -3,7 +3,9 @@
 
 #include <stdint.h>
 
+#ifndef MAX_TORRENT_SIZE
 #define MAX_TORRENT_SIZE 8192
+#endif
 
 typedef uint8_t int_type;
 

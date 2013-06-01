@@ -17,7 +17,7 @@ module DebugP {
 
     while(i < j){
 
-      tmp = str;
+      tmp = str[i];
 
       str[i] = str[j];
       str[j] = tmp;

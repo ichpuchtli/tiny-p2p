@@ -1,5 +1,9 @@
 #include <lib6lowpan/lib6lowpan.h>
+#include <lib6lowpan/6lowpan.h>
 #include <lib6lowpan/ip.h>
+
+#define MAX_TORRENT_SIZE 8192
+#define DEFAULT_PKT_SIZE 256
 
 #include "tracker.h" //TRACKER_PORT, TRACKER_ADDR_STR, tracker_t
 #include "peer.h" // pxPeerTable[], pxPeerTableWalk(peer_t), peer_t
@@ -7,24 +11,22 @@
 #include "P2PMessage.h" // P2PMESSAGE_PORT
 #include "bitvector.h"
 
-#define DEFAULT_PKT_SIZE 256
-
 #define xstr(a) str(a)
 #define str(a) #a
 
 enum {
-
-  FSM_IDLE = 0,
-  FSM_ANNOUCE,
-  FSM_LEECH,
-  FSM_SEED
-}
+  DAEMON_IDLE     = 0,
+  DAEMON_SCRAPE   = 1,
+  DAEMON_ANNOUNCE = 3,
+  DAEMON_LEECH    = 4,
+  DAEMON_SEED     = 5
+};
 
 
 module ClientP {
 
   uses interface Boot;
-  uses interface Timer<TMilli>;
+  uses interface Timer<TMilli> as MainSched;
 
   uses interface Leds;
 
@@ -46,14 +48,18 @@ module ClientP {
 
 } implementation {
 
-  task void vStateMachinePass_Task(void);
+  task void vMainLoop_Task(void);
+
+  volatile uint16_t g_usEnableDaemon = 1 << DAEMON_IDLE;
+
+  volatile uint8_t g_ucDaemonPriority[5] = {0};
 
   peer_t xThisPeer;
   tracker_t xTracker;
   session_t xSession;
   torrent_t xTorrent;
 
-  static volatile uint8_t ucFSMState = 0;
+  uint8_t pucFileBuffer[MAX_TORRENT_SIZE];
 
   // Boot
   event void Boot.booted() {
@@ -64,8 +70,11 @@ module ClientP {
     xThisPeer.addr.port = htons(P2PMESSAGE_PORT);
 
     inet_pton6("fec0::", (struct in6_addr*) &xThisPeer.addr.addr);
-    ((struct in6_addr) xThisPeer.addr.addr).in6_u.u6_addr16[7] =
-    (((uint16_t )TOS_NODE_ID << 8) | ((uint16_t )TOS_NODE_ID >> 8)) & 0xffff;
+
+    /* TODO use memory hack here struct in6_addr cannot be found
+    struct in6_addr tmpaddress = (struct in6_addr) xThisPeer.addr.addr;
+    tmpaddress.in6_u.u6_addr16[7] = (((uint16_t )TOS_NODE_ID << 8) | ((uint16_t )TOS_NODE_ID >> 8)) & 0xffff;
+    */
 
     xThisPeer.peerId = hash((uint8_t*) &xThisPeer.addr, sizeof(addr_t));
 
@@ -95,94 +104,151 @@ module ClientP {
 
     /* Session Structure */
     call Debug.sendString("Initializing Session Structure...\r\n");
-    memset((void*) xSession, '\0', sizeof(session_t)); 
+
+    memset((void*) &xSession, '\0', sizeof(session_t)); 
 
     call Debug.sendString("Booted!\r\n");
 
-    call Timer.startPeriodic(1024);
+    g_ucDaemonPriority[DAEMON_IDLE] = 0;
+    g_ucDaemonPriority[DAEMON_SCRAPE] = 0;
 
-    post vStateMachinePass_Task();
+    g_usEnableDaemon = (1 << DAEMON_IDLE) | (1 << DAEMON_SCRAPE);
+
+    call MainSched.startOneShot(100);
 
   }
 
+  task void vMainLoop_Task(void){
+  
+    static uint16_t usMainLoopPasses = 0x0;
 
-  task void vStateMachinePass_Task(void){
+   //////////////////////////////////////////////////////////// 
+   // Idle Daemon Process
 
+    if( usMainLoopPasses %  g_ucDaemonPriority[DAEMON_IDLE] == 0){ 
 
-    switch(ucState){
+      //TODO Idle work maybe flush streams, check pending responses etc.
+      //TODO maybe ping tracker
 
-      case FSM_IDLE: // Sraping
-        call P2PMessage.scrape(NULL);
-        return;
+      call Debug.sendString("IDLE: Running Threads (");
 
-      case FSM_ANNOUCE: // Announcing
-        call P2PMessage.announce();
-        return;
+      if ( g_usEnableDaemon & (1 << DAEMON_SCRAPE ))
+        call Debug.sendString("Scrape,");
 
-      case FSM_LEECH: // Leeching
+      if ( g_usEnableDaemon & (1 << DAEMON_ANNOUNCE ))
+        call Debug.sendString("Announce,");
 
-        if(fileCompleted){
-          ucStage++;
-        }else{
+      if ( g_usEnableDaemon & (1 << DAEMON_LEECH ))
+        call Debug.sendString("Leech,");
 
-          vRequestRaresetPiece();
-          vSendRequestedPiece();
-        }
+      if ( g_usEnableDaemon & (1 << DAEMON_SEED ))
+        call Debug.sendString("Seed,");
 
-        goto PRESERVE;
+      call Debug.sendString(")\r\n");
 
-      case FSM_SEED: // Seeding
+    }
 
-        vSendRequestedPiece();
+   //////////////////////////////////////////////////////////// 
+   // Scrape Daemon Process
 
-        goto PRESERVE;
+    if ( g_usEnableDaemon & (1 << DAEMON_SCRAPE )){
+
+      
+      if( usMainLoopPasses %  g_ucDaemonPriority[DAEMON_SCRAPE] == 0){ 
+
+        //TODO Check for pending scrape responses before issuing any more
+        call Message.scrape(&xTracker.addr,NULL);
+        
+      }
+  
+    }
+
+   //////////////////////////////////////////////////////////// 
+   // Announce Daemon Pass
+   
+    if ( g_usEnableDaemon & (1 << DAEMON_ANNOUNCE )){
+
+      if( usMainLoopPasses % g_ucDaemonPriority[DAEMON_ANNOUNCE] == 0){ 
+
+        call Message.announce(&xTracker.addr);
 
       }
 
-PRESERVE:
-    // Push State Machine State then exit
-    post vStateMachinePass_Task();
+    }
+      
+   //////////////////////////////////////////////////////////// 
+   // Leech Daemon Pass
+    
+    if ( g_usEnableDaemon & (1 << DAEMON_LEECH )){
 
+      if( usMainLoopPasses % g_ucDaemonPriority[DAEMON_LEECH] == 0){ 
 
+        //vRequestRaresetPiece();
+        //vSendRequestedPiece();
+
+      }
+    }
+
+   //////////////////////////////////////////////////////////// 
+   // Seed Daemon Pass
+
+    if ( g_usEnableDaemon & (1 << DAEMON_SEED )){
+
+      if( usMainLoopPasses %  g_ucDaemonPriority[DAEMON_SEED] == 0){ 
+
+        //vSendRequestedPiece();
+
+      }
+    }
+
+    usMainLoopPasses++;
+
+    // Re-post main task to simulate low priority thread,
+    // one shot here to slow loop pass rate if necessary
+    call MainSched.startOneShot(100);
   }
 
   
-  event void Message.recvScrapeResponse(tracker_t* trackerStatus){
+  event void Message.recvScrapeResponse(torrent_t* torrent){
   
     //TODO Check tracker response and step the fsm if applicable
     //TODO maybe change function arg to torrent_t*
 
-    if(trackerStatus->torrent){ // TODO This is not good indicator for ready torrent
-      memcpy((void*) &xTorrent, (void*) trackerStatus->torrent, sizeof(torrent_t)); 
+    if(torrent){
+
+      memcpy((void*) &xTorrent, (void*) torrent, sizeof(torrent_t)); 
+
     }
 
-    post vStateMachinePass_Task();
   }
 
   event void Message.recvAnnounceResponse(peer_t* peer){
   
     //TODO add to peer list then handshake peer
 
-    if(!pxPeerTableWalk(peer->id)){
+    if(!pxPeerTableWalk(peer->peerId)){
 
       vPeerTableAdd(peer);
 
-      call P2PMessage.handshake(peer->addr);
+      call Message.handshake(&peer->addr, &xThisPeer);
     }
 
-    post vStateMachinePass_Task();
-  
   }
 
-  event void Message.recvHandShake(addr_t* addr, peer_t* peerInfo){}
+  event void Message.recvHandShake(hash_t peerId, peer_t* peerInfo){}
   
-  event void Message.recvInterest(peer_t* peer, bitvector_t* pieces){ }
+  event void Message.recvInterest(hash_t peerId, bitvector_t* pieces){ }
 
-  event void Message.recvPiece(peer_t* peer, piece_t* piece){ }
+  event void Message.recvPiece(hash_t peerId, piece_t* piece){ }
 
-  event void Timer.fired() {
+  // Tracker Events
+  event void Message.recvScrapeRequest(hash_t peerId, torrent_t* torrent){}
 
-      //call Message.sendMessage((addr_t*) &peer1, MESSAGE_PIECE, (uint8_t*) &xMicDataPacket , sizeof(struct tmpPacket));
+  event void Message.recvAnnounceRequest(hash_t peerId){}
+
+  event void MainSched.fired() {
+
+    post vMainLoop_Task();
   }
 
   event void MicSensor.readDone(error_t result, uint16_t data) 

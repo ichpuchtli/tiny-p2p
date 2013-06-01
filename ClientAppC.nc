@@ -14,7 +14,7 @@ configuration ClientAppC {
   ClientP.MicSensor -> MicrophoneC;
 
   components new TimerMilliC();
-  ClientP.Timer -> TimerMilliC;
+  ClientP.MainSched -> TimerMilliC;
 
   components LedsC;
   ClientP.Leds -> LedsC;

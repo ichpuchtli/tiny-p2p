@@ -12,7 +12,7 @@ typedef struct {
   // Pack header structure here for when these structures are sent
   p2p_header_t header;
 
-  hash_t peerId;
+  hash_t peerId; // = hash struct sockaddr_in6* addr
   addr_t addr;
 
   bitvector_t interests;
@@ -20,8 +20,9 @@ typedef struct {
 
 } peer_t;
 
-static peer_t pxPeerTable[PEER_TABLE_SIZE] = {0};
-static uint8_t ucPeerCount = 0;
+peer_t pxPeerTable[PEER_TABLE_SIZE];
+
+uint8_t ucPeerCount = 0;
 
 peer_t* pxPeerTableWalk(hash_t peerId){
 
@@ -33,13 +34,13 @@ peer_t* pxPeerTableWalk(hash_t peerId){
   if( index < 0 )
     return (peer_t*) 0x00;
 
-  return pxPeerTable + index;
+  return (peer_t*)(pxPeerTable + index);
 }
 
 void vPeerTableAdd(peer_t* peer){
 
   if(ucPeerCount < PEER_TABLE_SIZE){
-    memcpy((void*) (pcPeerTable + ucPeerCount), (void*) peer, sizeof(peer_t));
+    memcpy((void*) (pxPeerTable + ucPeerCount), (void*) peer, sizeof(peer_t));
     ucPeerCount++;
   }
 
