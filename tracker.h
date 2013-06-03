@@ -8,7 +8,7 @@
 #include "torrent.h"
 
 #define TRACKER_PORT     1300
-#define TRACKER_ADDR_STR "fec0::1"
+#define TRACKER_ADDR_STR "fec0::3"
 
 typedef struct {
 
