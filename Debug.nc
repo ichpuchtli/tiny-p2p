@@ -7,7 +7,7 @@ interface Debug {
 
   async command void sendString(char* byteString);
 
-  async command void sendNum(uint16_t num);
+  async command void sendNum(int16_t num, uint8_t radix);
 
   async command void sendCRLF(void);
   
