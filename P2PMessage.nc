@@ -10,41 +10,49 @@
 
 interface P2PMessage {
 
-  //////////////////////////////////////////////////////////////////////////////
-  // Commands
-  
-  // Generic Message Command
-  async command void sendMessage(addr_t* peer, p2p_mesg_t type, uint8_t* payload, uint16_t count); 
 
-  async command void ping(addr_t* peer);
+  // Tracker Events
+  event void recvScrapeRequest(addr_t* from, torrent_t* torrent);
 
-  // A handshake is used to greet a new peer in the swam exchanging peer_t information
-  async command void handshake(addr_t* peer);
+  event void recvAnnounceRequest(addr_t* from);
 
-  // Send empty meta to receive information about a possible torrent
-  // Send a meta packet to create a torrent and store it on the tracker
-  async command void scrape(torrent_t* meta);
+  // Tracker Commands   
+  command void sendScrapeResponse(addr_t* to, torrent_t* torrent); 
 
-  // Acknowledge your presents in the p2p network and ask for another peer
-  async command void announce(void);
+  command void sendAnnounceResponse(addr_t* to, addr_t* peer); 
 
-  // Send a piece to an address
-  async command void sendPiece(addr_t* peer, piece_t* piece);
+  // Client Events
 
-  // Send a bitvector of the pieces your peer is interested in downloading
-  async command void sendInterest(addr_t* peer, bitvector_t* pieces);
-
-  //////////////////////////////////////////////////////////////////////////////
-  // Events
-  
-  event void recvScrapeResponse(tracker_t* trackerStatus);
+  event void recvScrapeResponse(torrent_t* torrent);
 
   event void recvAnnounceResponse(peer_t* peer);
 
-  event void recvHandShake(addr_t* addr, peer_t* peerInfo);
+  event void recvHandShake(hash_t peerId, peer_t* peerInfo);
   
-  event void recvInterest(peer_t* peer, bitvector_t* pieces);
+  event void recvInterest(hash_t peerId, bitvector_t* pieces);
 
-  event void recvPiece(peer_t* peer, piece_t* piece);
+  event void recvPiece(hash_t peerId, piece_t* piece);
+
+
+  // Client Commands
+
+  // Generic Message Command
+  command void sendMessage(addr_t* to, p2p_mesg_t type, uint8_t* payload, uint16_t count); 
+
+  // A handshake is used to greet a new peer in the swam exchanging peer_t information
+  command void handshake(addr_t* to, peer_t* peerInfo);
+
+  // Send empty meta to receive information about a possible torrent
+  // Send a meta packet to create a torrent and store it on the tracker
+  command void scrape(addr_t* to, torrent_t* meta);
+
+  // Acknowledge your presents in the p2p network and ask for another peer
+  command void announce(addr_t* to);
+
+  // Send a piece to an address
+  command void sendPiece(addr_t* to, piece_t* piece);
+
+  // Send a bitvector of the pieces your peer is interested in downloading
+  command void sendInterest(addr_t* to, bitvector_t* pieces);
 
 }
