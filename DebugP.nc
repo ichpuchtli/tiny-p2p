@@ -1,3 +1,4 @@
+#include "stdlib.h"
 
 module DebugP {
 
@@ -8,6 +9,7 @@ module DebugP {
   uses interface StdControl as UartControl;
 
 } implementation {
+
 
   command error_t Init.init(){
 
@@ -29,11 +31,13 @@ module DebugP {
     call Debug.sendStream(byteString, call Debug.stringLen(byteString));
   }
 
-  async command void Debug.sendNum(uint16_t num){
+  async command void Debug.sendNum(int16_t num, uint8_t radix){
 
-    char buffer[8];
+    char buffer[32];
 
-    call Debug.sendStream(buffer, call Debug.num2Str(num,buffer));
+    (void) ltoa(num, buffer, radix); 
+    
+    call Debug.sendString(buffer); 
   }
 
   async command void Debug.sendCRLF(){
@@ -48,34 +52,6 @@ module DebugP {
     while(*byteString++) size++;
 
     return size;
-  }
-
-  async command int16_t Debug.str2Num(char* string){
-
-    int16_t value = 0;
-
-    while( *string >= '0' && *string <= '9' ){
-      value *= 10;
-      value += (int16_t) (*string - '0');
-      string++;
-    }
-
-    return value;
-
-  }
-
-  async command uint8_t Debug.num2Str(uint16_t num, char* buf){
-
-    uint16_t i = 8;
-    uint8_t j = 0;
-
-    for(; num && i; --i, num /= 10) buf[i] = "0123456789"[num % 10];
-
-    for(; j < (8 - (i+1)); j++){
-      buf[j] = buf[i+1+j];
-    }
-
-    return j;
   }
 
   async command void Debug.flush(void){ }
