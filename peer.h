@@ -15,14 +15,15 @@ typedef struct {
   hash_t peerId; // = hash struct sockaddr_in6* addr
   addr_t addr;
 
-  bitvector_t interests;
-  bitvector_t completed;
+  //bitvector_t interests;
+  //bitvector_t completed;
 
 } peer_t;
 
+
 peer_t pxPeerTable[PEER_TABLE_SIZE];
 
-uint8_t ucPeerCount = 0;
+/*static */ uint8_t ucPeerCount = 0;
 
 peer_t* pxPeerTableWalk(hash_t peerId){
 

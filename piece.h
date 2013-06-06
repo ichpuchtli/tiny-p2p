@@ -6,7 +6,7 @@
 #include "hash.h"
 #include "misc.h"
 
-#define PIECE_SIZE 32
+#define PIECE_SIZE 64
 
 typedef struct {
 

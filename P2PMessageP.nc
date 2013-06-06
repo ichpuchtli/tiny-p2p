@@ -38,14 +38,16 @@ module P2PMessageP {
 
     hash_t peerId = hash((uint8_t*) from, sizeof(struct sockaddr_in6));
 
+    /*
     call Debug.sendString("Message: Received [");
     call Debug.sendNum((int16_t) peerId, 10);
     call Debug.sendString(", ");
-    call Debug.sendNum(len, 4);
-    call Debug.sendString(", 0x");
-    call Debug.sendNum(mesg->type, 4);
+    call Debug.sendNum(len, 10);
+    call Debug.sendString(", ");
+    call Debug.sendNum(mesg->type, 10);
     call Debug.sendByte(']');
     call Debug.sendByte('\n');
+    */
 
     switch(mesg->type){
 
@@ -108,15 +110,17 @@ module P2PMessageP {
     mesg->type = type;
     mesg->len = count;
 
+    /*
     call Debug.sendString("Message: Sent [");
     call Debug.sendNum((int16_t) peerId, 10);
     call Debug.sendString(", ");
-    call Debug.sendNum(count, 4);
-    call Debug.sendString(", 0x");
-    call Debug.sendNum(mesg->type, 4);
+    call Debug.sendNum(count, 10);
+    call Debug.sendString(", ");
+    call Debug.sendNum(mesg->type, 10);
     call Debug.sendByte(']');
     call Debug.sendByte('\n');
 
+    */
     call MesgSock.sendto((struct sockaddr_in6*) to, (void*) mesg, mesg->len);
 
   }
@@ -133,7 +137,9 @@ module P2PMessageP {
 
   // A handshake is used to greet a new peer in the swam exchanging peer_t information
   // Who you are (PeerID) , what your after(torrent_t{bitvector,sha1}), what port you listen on(port_t), etc..
-  command void P2PMessage.handshake(addr_t* to, peer_t* peerInfo){}
+  command void P2PMessage.handshake(addr_t* to, peer_t* peerInfo){
+    call P2PMessage.sendMessage(to, MESSAGE_HANDSHAKE, (uint8_t*) peerInfo, sizeof(peer_t));
+  }
 
   // Ask the tracker for information about a torrent, tracker load, swarm status etc..
   // Empty torrent meta signals new torrent
