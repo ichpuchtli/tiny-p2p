@@ -1,2 +1,2 @@
-COMPONENT=DebugC
+COMPONENT=SerialCameraC
 include $(MAKERULES)
