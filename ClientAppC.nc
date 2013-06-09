@@ -6,6 +6,9 @@ configuration ClientAppC {
 
   components ClientP;
 
+  components DebugC;
+  ClientP.Debug -> DebugC.Debug;
+
   components MainC;
   ClientP.Boot -> MainC;
 
@@ -14,9 +17,6 @@ configuration ClientAppC {
 
   components LedsC;
   ClientP.Leds -> LedsC;
-
-  components DebugC;
-  ClientP.Debug -> DebugC.Debug;
 
   components P2PMessageC;
   ClientP.Message -> P2PMessageC.P2PMessage;

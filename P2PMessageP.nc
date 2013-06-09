@@ -11,7 +11,6 @@
 #include "piece.h"
 #include "addr.h"
 
-
 module P2PMessageP {
 
   provides interface P2PMessage;
@@ -29,10 +28,8 @@ module P2PMessageP {
 
     call SocketControl.start();
     call MesgSock.bind(P2PMESSAGE_PORT);
-    call Debug.sendString("P2PMessage Socket Bound To: " xstr(P2PMESSAGE_PORT) );
     
     return SUCCESS;
-
   }
 
   event void MesgSock.recvfrom(struct sockaddr_in6 *from, void *data, uint16_t len, struct ip6_metadata *meta) {
@@ -41,13 +38,14 @@ module P2PMessageP {
 
     hash_t peerId = hash((uint8_t*) from, sizeof(struct sockaddr_in6));
 
-    call Debug.sendString("P2PMessage: Message Received peerId: ");
-    call Debug.sendNum(peerId);
-    call Debug.sendString(", mesg->len: ");
-    call Debug.sendNum(mesg->len);
-    call Debug.sendString(", mesg->type: ");
-    call Debug.sendNum(mesg->type);
-    call Debug.sendCRLF();
+    call Debug.sendString("Message: Received [");
+    call Debug.sendNum((int16_t) peerId, 10);
+    call Debug.sendString(", ");
+    call Debug.sendNum(len, 10);
+    call Debug.sendString(", ");
+    call Debug.sendNum(mesg->type, 10);
+    call Debug.sendByte(']');
+    call Debug.sendByte('\n');
 
     switch(mesg->type){
 
@@ -87,7 +85,7 @@ module P2PMessageP {
         break;
 
       default:
-        call Debug.sendString("P2PMessage: Error unknown message type\r\n");
+        call Debug.sendString("Message: Error unknown message type\r\n");
         break;
 
     }
@@ -110,13 +108,14 @@ module P2PMessageP {
     mesg->type = type;
     mesg->len = count;
 
-    call Debug.sendString("P2PMessage: Message Sent peerId: ");
-    call Debug.sendNum(peerId);
-    call Debug.sendString(", mesg->len: ");
-    call Debug.sendNum(mesg->len);
-    call Debug.sendString(", mesg->type: ");
-    call Debug.sendNum(mesg->type);
-    call Debug.sendCRLF();
+    call Debug.sendString("Message: Sent [");
+    call Debug.sendNum((int16_t) peerId, 10);
+    call Debug.sendString(", ");
+    call Debug.sendNum(count, 10);
+    call Debug.sendString(", ");
+    call Debug.sendNum(mesg->type, 10);
+    call Debug.sendByte(']');
+    call Debug.sendByte('\n');
 
     call MesgSock.sendto((struct sockaddr_in6*) to, (void*) mesg, mesg->len);
 

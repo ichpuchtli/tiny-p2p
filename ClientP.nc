@@ -2,7 +2,7 @@
 #include <lib6lowpan/6lowpan.h>
 #include <lib6lowpan/ip.h>
 
-#define MAX_TORRENT_SIZE 8192
+#define MAX_TORRENT_SIZE 1024
 #define DEFAULT_PKT_SIZE 256
 
 #include "tracker.h" //TRACKER_PORT, TRACKER_ADDR_STR, tracker_t
@@ -47,23 +47,24 @@ module ClientP {
 } implementation {
 
   tracker_t xTracker;
+  torrent_t xTorrent;
+
+  bool g_hazTorrent = FALSE;
 
   // Boot
   event void Boot.booted() {
 
+    call Debug.sendString("\n============== Boot Sequence ===========\r\n");
 
     xTracker.addr.port = htons(TRACKER_PORT);
     inet_pton6(TRACKER_ADDR_STR, (struct in6_addr*) &xTracker.addr.addr);
 
     xTracker.id = hash((uint8_t*) &xTracker.addr ,sizeof(addr_t));
 
-    call Debug.sendString("Tracker Addr: fec0::1\r\n");
+    call Debug.sendString("Tracker Addr: fec0::4\r\n");
 
-    inet_pton6(TRACKER_ADDR_STR, (struct in6_addr*) &xTracker.torrent.tracker.addr);
-    xTracker.torrent.tracker.port = htons(TRACKER_PORT);
-
-    xTracker.torrent.piecesCount = 0;
-    xTracker.torrent.pieceSize = 0;
+    //inet_pton6(TRACKER_ADDR_STR, (struct in6_addr*) &xTracker.torrent.tracker.addr);
+    //xTracker.torrent.tracker.port = htons(TRACKER_PORT);
 
     call Debug.sendString("Booted!\r\n");
 
@@ -72,9 +73,31 @@ module ClientP {
   // Tracker Events
   event void Message.recvScrapeRequest(addr_t* from, torrent_t* torrent){
 
-    call Debug.sendString("recvScrapeRequest: Scrape Requested!\r\n");
+    call Debug.sendString("Scrape Request from ");
+    call Debug.sendNum(hash((uint8_t*) from, sizeof(addr_t)),10);
+    call Debug.sendCRLF();
 
-    call Message.sendScrapeResponse(from, &xTracker.torrent);
+    if(torrent->pieces != 0){
+
+      memcpy((void*) &xTorrent, (void*) torrent, sizeof(torrent_t));
+
+      g_hazTorrent=TRUE;
+
+      call Debug.sendString("New Torrent Available!\r\n");
+
+      call Message.sendScrapeResponse(from, &xTorrent);
+
+    }else{
+
+      if(g_hazTorrent){
+
+        call Debug.sendString("Sent torrent to interested peer!\r\n");
+
+        call Message.sendScrapeResponse(from, &xTorrent);
+      }
+
+    }
+
   }
 
   event void Message.recvAnnounceRequest(addr_t* from){}
