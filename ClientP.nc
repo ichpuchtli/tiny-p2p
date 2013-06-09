@@ -47,11 +47,6 @@ module ClientP {
   uses interface P2PMessage as Message;
 
 
-  //uses interface FileSystem as Files;
-  
-  // Poke aka Ping, sync ping service 
-  //uses interface Poke;
-
 } implementation {
 
   const uint16_t sinetable[256] = {2048, 1998, 1948, 1897, 1847, 1797,
@@ -153,16 +148,18 @@ module ClientP {
     g_ucDaemonPriority[DAEMON_LEECH]    = 5;
     g_ucDaemonPriority[DAEMON_SEED]     = 5;
 
+
+    ENABLE_THREAD(DAEMON_SCRAPE);
+
     call Timer.startOneShot(2024); // Start main task chain
     call Debug.sendString("============== Main Loop ===============\r\n");
 
-    ENABLE_THREAD(DAEMON_SCRAPE);
-    call Debug.sendString("Scraping");
+    call Debug.sendString("\nScraping");
   }
 
   void idle_worker(void* param){
   
-    call Debug.sendString("meow\n");
+    call Debug.sendString("idle\n");
   }
   
   void scrape_worker(void* param){
@@ -257,9 +254,6 @@ module ClientP {
 
   event void Message.recvScrapeResponse(torrent_t* torrent){
   
-    //TODO Check tracker response and step the fsm if applicable
-    //TODO maybe change function arg to torrent_t*
-
     if(IS_CLIENT){
 
       // Copy torrent meta
